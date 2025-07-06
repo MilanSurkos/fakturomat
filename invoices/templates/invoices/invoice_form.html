@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="mb-0">
+                {% if object %}
+                    Edit Invoice #{{ object.invoice_number }}
+                {% else %}
+                    Create New Invoice
+                {% endif %}
+            </h2>
+        </div>
+        <div class="card-body">
+            <form method="post" id="invoice-form" class="needs-validation" novalidate>
+                {% csrf_token %}
+                {% if form.version %}
+                    {{ form.version }}
+                {% endif %}
+                <input type="hidden" name="form_submitted" value="1">
+
+                <!-- Error message container for calculation errors -->
+                <div id="calculation-error" class="alert alert-danger d-none mb-3" role="alert">
+                    <!-- Error message will be inserted here by JavaScript -->
+                </div>
+                
+                {% if form.errors or form.non_field_errors or formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> Please correct the errors below.
+                        
+                        {% if form.non_field_errors %}
+                            <div class="mt-2">
+                                {% for error in form.non_field_errors %}
+                                    <div class="mb-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        {% if formset.non_form_errors %}
+                            <div class="mt-2">
+                                {% for error in formset.non_form_errors %}
+                                    <div class="mb-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        {% if form.errors %}
+                            <div class="mt-2">
+                                {% for field, errors in form.errors.items %}
+                                    {% if field != '__all__' %}
+                                        <div class="mb-1">
+                                            <strong>{{ field|title }}:</strong>
+                                            {% for error in errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Form errors will be displayed inline with each field -->
+                    </div>
+                {% endif %}
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="{{ form.client.id_for_label }}" class="form-label">
+                                {{ form.client.label }}
+                                {% if form.client.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            {{ form.client }}
+                            {% if form.client.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.client.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+
+                            <div class="form-group mb-3">
+                                <label for="{{ form.issue_date.id_for_label }}" class="form-label">
+                                    {{ form.issue_date.label }}
+                                    {% if form.issue_date.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.issue_date }}
+                                {% if form.issue_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.issue_date.errors|join:", " }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="{{ form.due_date.id_for_label }}" class="form-label">
+                                    {{ form.due_date.label }}
+                                    {% if form.due_date.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.due_date }}
+                                {% if form.due_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.due_date.errors|join:", " }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">
+                                    {{ form.status.label }}
+                                    {% if form.status.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.status.errors|join:", " }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="{{ form.payment_method.id_for_label }}" class="form-label">
+                                    {{ form.payment_method.label }}
+                                    {% if form.payment_method.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <select name="{{ form.payment_method.name }}" 
+                                        id="{{ form.payment_method.id_for_label }}" 
+                                        class="form-select {% if form.payment_method.errors %}is-invalid{% endif %}"
+                                        {% if form.payment_method.field.required %}required{% endif %}>
+                                    <option value="">Select a payment method</option>
+                                    {% for value, label in form.payment_method.field.choices %}
+                                        <option value="{{ value }}" {% if form.payment_method.value == value|stringformat:"s" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.payment_method.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.payment_method.errors|join:", " }}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Select how the invoice should be paid.</small>
+                            </div>
+
+                            <!-- Currency is fixed to EUR -->
+                            <input type="hidden" name="currency" value="EUR">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Invoice Items</h5>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-item">
+                        <i class="fas fa-plus me-1"></i> Add Item
+                    </button>
+                </div>
+                <div class="card-body">
+                    {{ formset.management_form }}
+                    <div id="formset-container">
+                        {% for form in formset %}
+                            <div class="formset-form row mb-3 border-bottom pb-3 align-items-end" data-form-prefix="{{ form.prefix }}">
+                                {{ form.id }}
+                                <div class="col-md-4">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">
+                                        {{ form.description.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.description.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="{{ form.quantity.id_for_label }}" class="form-label">
+                                        {{ form.quantity.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <button type="button" class="btn btn-outline-secondary quantity-control" data-action="decrease">-</button>
+                                        {{ form.quantity }}
+                                        <button type="button" class="btn btn-outline-secondary quantity-control" data-action="increase">+</button>
+                                    </div>
+                                    {% if form.quantity.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.quantity.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="{{ form.unit_price.id_for_label }}" class="form-label">
+                                        {{ form.unit_price.label }}
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">€</span>
+                                        {{ form.unit_price }}
+                                    </div>
+                                    {% if form.unit_price.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.unit_price.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">
+                                        VAT Rate
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               value="20.00%" 
+                                               disabled
+                                               style="background-color: #f8f9fa;">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            VAT rate is fixed at 20%
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-item" title="Remove item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if formset.non_form_errors %}
+                        <div class="alert alert-danger">
+                            <strong>Formset errors:</strong>
+                            <ul class="mb-0">
+                                {% for error in formset.non_form_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                        <!-- Empty form template (hidden) -->
+                        <div id="empty-form" class="d-none">
+                            <div class="formset-form row mb-3 border-bottom pb-3 align-items-end" data-form-prefix="__prefix__">
+                                {{ formset.empty_form.id }}
+                                
+                                <div class="col-md-4">
+                                    <label for="id_items-__prefix__-description" class="form-label">
+                                        Description
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    {{ formset.empty_form.description|add_class:'form-control'|attr:'required:true'|attr:'placeholder:Item description' }}
+                                    <div class="invalid-feedback">
+                                        Please provide a description.
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label for="id_items-__prefix__-quantity" class="form-label">
+                                        Quantity
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <button type="button" class="btn btn-outline-secondary quantity-control" data-action="decrease">-</button>
+                                        {{ formset.empty_form.quantity|add_class:'form-control text-center'|attr:'required:true'|attr:'min:1'|attr:'step:1'|attr:'value:1' }}
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label for="id_items-__prefix__-unit_price" class="form-label">
+                                        Unit Price
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">{{ form.currency.value|default:'€' }}</span>
+                                        {{ formset.empty_form.unit_price|add_class:'form-control item-unit-price'|attr:'required:true'|attr:'min:0'|attr:'step:0.01'|attr:'data-field:unit_price' }}
+                                    </div>
+                                    <div class="invalid-feedback">Please enter a valid price</div>
+                                        Please provide a valid unit price.
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label class="form-label">
+                                        VAT Rate
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               value="20.00%" 
+                                               disabled
+                                               style="background-color: #f8f9fa;">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            VAT rate is fixed at 20%
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-item" title="Remove item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Existing forms will be added here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Invoice Summary</h5>
+                </div>
+                <div class="card-body invoice-totals">
+                    <div class="row">
+                        <div class="col-md-8 offset-md-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Subtotal:</span>
+                                <div class="text-end">
+                                    <span id="subtotal-display" class="fw-medium">{{ form.subtotal.value|default:'0.00' }} €</span>
+                                    <input type="hidden" name="subtotal" value="{{ form.subtotal.value|default:'0.00' }}">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Tax:</span>
+                                <div class="text-end">
+                                    <span id="tax-amount" class="fw-medium">{{ form.total_tax.value|default:'0.00' }} €</span>
+                                    <input type="hidden" name="total_tax" value="{{ form.total_tax.value|default:'0.00' }}">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted fw-bold">Total:</span>
+                                <div class="text-end">
+                                    <span id="total-amount" class="fw-bold">{{ form.total_amount.value|default:'0.00' }} €</span>
+                                    <input type="hidden" name="total_amount" value="{{ form.total_amount.value|default:'0.00' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Additional Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-0">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">
+                            {{ form.notes.label }}
+                            {% if form.notes.field.required %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.help_text %}
+                            <small class="form-text text-muted">{{ form.notes.help_text }}</small>
+                        {% endif %}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.notes.errors|join:", " }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center py-3 border-top">
+                <a href="{% if form.instance.pk %}{% url 'invoices:detail' form.instance.pk %}{% else %}{% url 'invoices:list' %}{% endif %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Cancel
+                </a>
+                <div class="btn-group" role="group">
+                    <button type="submit" name="save" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Save Invoice
+                    </button>
+                    <button type="submit" name="save_and_continue" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i> Save & Continue Editing
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hide number input spinners for all browsers */
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+    
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    
+    /* Ensure the input group still looks good */
+    .input-group input[type="number"] {
+        -moz-appearance: textfield;
+    }
+    
+    .input-group input[type="number"]::-webkit-outer-spin-button,
+    .input-group input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include the combined invoice form JavaScript -->
+<script src="{% static 'invoices/js/invoice-form-combined.js' %}"></script>
+<script>
+    // Initialize the invoice form when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM fully loaded');
+        console.log('Add button:', document.getElementById('add-item'));
+        console.log('Formset container:', document.getElementById('formset-container'));
+        console.log('Empty form template:', document.getElementById('empty-form'));
+        
+        // Initial update of invoice totals when the page loads
+        if (window.invoiceForm) {
+            // Trigger a recalculation of totals after a short delay to ensure all elements are loaded
+            setTimeout(() => {
+                window.invoiceForm.updateInvoiceTotals();
+                
+                // Currency is fixed to EUR, no need for change listener
+            }, 100);
+        }
+    });
+</script>
+{% endblock %}
+

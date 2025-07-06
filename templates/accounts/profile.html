@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ block.super }}{% endblock %}
+
+{% block content %}
+<style>
+    /* Debug styles */
+    .nav-tabs {
+        background-color: #f8f9fa;
+        padding: 0.5rem;
+    }
+    .nav-tabs .nav-link {
+        color: #000 !important;
+        font-size: 1rem !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    .nav-tabs .nav-link i {
+        margin-right: 0.5rem;
+    }
+    
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .nav-tabs {
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 1.5rem;
+    }
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: 1px solid transparent;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        padding: 0.5rem 1rem;
+        margin-right: 0.25rem;
+    }
+    .nav-tabs .nav-link:hover {
+        border-color: #e9ecef #e9ecef #dee2e6;
+    }
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: 600;
+    }
+    .nav-tabs .nav-item.show .nav-link {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+    .card {
+        border: 1px solid rgba(0,0,0,.125);
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        margin-bottom: 2rem;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0,0,0,.125);
+        padding: 1rem 1.25rem;
+    }
+</style>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">{{ title }} <i class="fas fa-check-circle text-success"></i></h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if not active_tab or active_tab == 'profile' %}active{% endif %}" 
+                                    id="profile-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#profile" 
+                                    type="button" 
+                                    role="tab" 
+                                    aria-controls="profile" 
+                                    aria-selected="{% if not active_tab or active_tab == 'profile' %}true{% else %}false{% endif %}">
+                                <i class="fas fa-user me-1"></i> Profile
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'password' %}active{% endif %}" 
+                                    id="password-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#password" 
+                                    type="button" 
+                                    role="tab" 
+                                    aria-controls="password" 
+                                    aria-selected="{% if active_tab == 'password' %}true{% else %}false{% endif %}">
+                                <i class="fas fa-key me-1"></i> Change Password
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'company' %}active{% endif %}" 
+                                    id="company-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#company" 
+                                    type="button" 
+                                    role="tab" 
+                                    aria-controls="company" 
+                                    aria-selected="{% if active_tab == 'company' %}true{% else %}false{% endif %}">
+                                <i class="fas fa-building me-1"></i> Company Information
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabsContent">
+                        <!-- Profile Tab -->
+                        <div class="tab-pane fade {% if not active_tab or active_tab == 'profile' %}show active{% endif %}" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                            <form method="post" action="{% url 'accounts:profile' %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label">Username</label>
+                                    <input type="text" class="form-control" value="{{ user.username }}" disabled>
+                                    <div class="form-text">Your username cannot be changed.</div>
+                                </div>
+                                {% for field in form %}
+                                    <div class="mb-3">
+                                        {{ field.label_tag }}
+                                        {{ field }}
+                                        {% if field.help_text %}
+                                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                                        {% endif %}
+                                        {% if field.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ field.errors|join:", " }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i> Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Company Information Tab -->
+                        <div class="tab-pane fade {% if active_tab == 'company' %}show active{% endif %}" id="company" role="tabpanel" aria-labelledby="company-tab">
+                            
+                            <form method="post" action="{% url 'accounts:profile' %}?tab=company" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Company Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if company_form %}
+                                            {% for field in company_form %}
+                                                <div class="mb-3">
+                                                    <label for="{{ field.id_for_label }}" class="form-label">
+                                                        {{ field.label }}
+                                                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                                                    </label>
+                                                    {{ field }}
+                                                    {% if field.help_text %}
+                                                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                                                    {% endif %}
+                                                    {% if field.errors %}
+                                                        <div class="invalid-feedback d-block">
+                                                            {{ field.errors|join:", " }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="alert alert-warning">
+                                                Company form is not available. Please check the view context.
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-footer text-end">
+                                        <button type="submit" name="update_company" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i> Save Company Information
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Password Tab -->
+                        <div class="tab-pane fade {% if active_tab == 'password' %}show active{% endif %}" id="password" role="tabpanel" aria-labelledby="password-tab">
+                            <form method="post" action="{% url 'accounts:change_password' %}">
+                                {% csrf_token %}
+                                {% for field in password_form %}
+                                    <div class="mb-3">
+                                        {{ field.label_tag }}
+                                        {{ field }}
+                                        {% if field.help_text %}
+                                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                                        {% endif %}
+                                        {% if field.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ field.errors|join:", " }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-key me-1"></i> Change Password
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Debug: Log when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded');
+    
+    // Debug: Log all tab elements
+    var tabs = document.querySelectorAll('#profileTabs button');
+    console.log('Found', tabs.length, 'tabs');
+    tabs.forEach(function(tab, index) {
+        console.log('Tab', index, ':', tab.outerHTML);
+    });
+    
+    // Initialize Bootstrap tabs
+    var triggerTabList = [].slice.call(tabs);
+    triggerTabList.forEach(function (triggerEl) {
+        try {
+            var tabTrigger = new bootstrap.Tab(triggerEl);
+            console.log('Initialized tab:', triggerEl.id);
+            
+            triggerEl.addEventListener('click', function (event) {
+                event.preventDefault();
+                console.log('Tab clicked:', triggerEl.id);
+                tabTrigger.show();
+            });
+        } catch (error) {
+            console.error('Error initializing tab:', error);
+        }
+    });
+});
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+});
+
+// Show tab from URL hash
+window.addEventListener('DOMContentLoaded', function() {
+    var hash = window.location.hash;
+    if (hash) {
+        var triggerEl = document.querySelector(`[data-bs-target="${hash}"]`);
+        if (triggerEl) {
+            var tab = new bootstrap.Tab(triggerEl);
+            tab.show();
+        }
+    }
+});
+</script>
+{% endblock %}

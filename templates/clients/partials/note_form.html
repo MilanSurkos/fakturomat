@@ -1,0 +1,96 @@
+{% load crispy_forms_tags %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            {% if note %}
+                {% trans 'Edit Note' %}
+            {% else %}
+                {% trans 'Add Note' %}
+            {% endif %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    <div class="card-body">
+        <form id="noteForm" method="post" 
+              action="{% if note %}{% url 'clients:edit_note' client_id=client.id note_id=note.id %}{% else %}{% url 'clients:add_note' client_id=client.id %}{% endif %}">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="d-flex justify-content-end mt-4">
+                <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans 'Cancel' %}
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> 
+                    {% if note %}{% trans 'Update Note' %}{% else %}{% trans 'Add Note' %}{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Initialize form with AJAX submission
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('noteForm');
+        
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const submitButton = form.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton.innerHTML;
+                
+                // Show loading state
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> {% trans "Saving..." %}';
+                
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Close the modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
+                        modal.hide();
+                        
+                        // Reload the page or update the notes list via JavaScript
+                        window.location.reload();
+                    } else {
+                        // Handle form errors
+                        if (data.errors) {
+                            // Update form with errors
+                            Object.keys(data.errors).forEach(field => {
+                                const input = form.querySelector(`[name="${field}"]`);
+                                if (input) {
+                                    const errorDiv = document.createElement('div');
+                                    errorDiv.className = 'invalid-feedback d-block';
+                                    errorDiv.textContent = data.errors[field][0];
+                                    
+                                    const parent = input.parentNode;
+                                    parent.classList.add('is-invalid');
+                                    parent.appendChild(errorDiv);
+                                }
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('{% trans "An error occurred while saving the note. Please try again." %}');
+                })
+                .finally(() => {
+                    // Reset button state
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                });
+            });
+        }
+    });
+</script>

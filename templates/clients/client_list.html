@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{% trans 'Clients' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="mb-0">{% trans 'Clients' %}</h1>
+                <div>
+                    <a href="{% url 'clients:export_csv' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-file-export me-1"></i> {% trans 'Export CSV' %}
+                    </a>
+                    <a href="{% url 'clients:create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> {% trans 'New Client' %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="q" class="form-control" placeholder="{% trans 'Search clients...' %}" 
+                               value="{{ request.GET.q }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="client_type" class="form-select">
+                        <option value="">{% trans 'All Types' %}</option>
+                        <option value="individual" {% if request.GET.client_type == 'individual' %}selected{% endif %}>{% trans 'Individual' %}</option>
+                        <option value="company" {% if request.GET.client_type == 'company' %}selected{% endif %}>{% trans 'Company' %}</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-filter me-1"></i> {% trans 'Filter' %}
+                        </button>
+                        <a href="{% url 'clients:list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-sync-alt"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{% trans 'Name' %}</th>
+                            <th>{% trans 'Contact' %}</th>
+                            <th>{% trans 'Type' %}</th>
+                            <th>{% trans 'Tax Info' %}</th>
+                            <th>{% trans 'Added' %}</th>
+                            <th class="text-end">{% trans 'Actions' %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for client in clients %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 me-2">
+                                        <div class="avatar-sm">
+                                            <div class="avatar-title bg-light text-primary rounded-circle">
+                                                {{ client.name|slice:":1"|upper }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0">{{ client.name }}</h6>
+                                        <small class="text-muted">{{ client.email|default:'' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if client.phone %}
+                                    <div><i class="fas fa-phone-alt me-2 text-muted"></i> {{ client.phone }}</div>
+                                {% endif %}
+                                {% if client.mobile %}
+                                    <div><i class="fas fa-mobile-alt me-2 text-muted"></i> {{ client.mobile }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if client.type == 'company' %}info{% else %}secondary{% endif %}">
+                                    {{ client.get_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if client.tax_number %}
+                                    <div><small class="text-muted">{% trans 'Tax' %}:</small> {{ client.tax_number }}</div>
+                                {% endif %}
+                                {% if client.vat_number %}
+                                    <div><small class="text-muted">{% trans 'VAT' %}:</small> {{ client.vat_number }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-muted">
+                                    {{ client.created_at|date:"M d, Y" }}
+                                </div>
+                                <small class="text-muted">
+                                    {% if client.created_by %}
+                                        {{ client.created_by.get_full_name|default:client.created_by.username }}
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="text-end">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light rounded-circle" type="button" id="dropdownMenuButton{{ client.id }}" 
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton{{ client.id }}">
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'clients:detail' client.id %}">
+                                                <i class="fas fa-eye me-2"></i> {% trans 'View' %}
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'clients:edit' client.id %}">
+                                                <i class="fas fa-edit me-2"></i> {% trans 'Edit' %}
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" 
+                                               data-bs-target="#deleteClientModal{{ client.id }}">
+                                                <i class="fas fa-trash-alt me-2"></i> {% trans 'Delete' %}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                <!-- Delete Confirmation Modal -->
+                                <div class="modal fade" id="deleteClientModal{{ client.id }}" tabindex="-1" 
+                                     aria-labelledby="deleteClientModalLabel{{ client.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteClientModalLabel{{ client.id }}">
+                                                    {% trans 'Confirm Deletion' %}
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" 
+                                                        aria-label="{% trans 'Close' %}"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>{% trans 'Are you sure you want to delete this client?' %}</p>
+                                                <p class="mb-0"><strong>{% trans 'Client' %}:</strong> {{ client.name }}</p>
+                                                {% if client.email %}
+                                                    <p class="mb-0"><strong>{% trans 'Email' %}:</strong> {{ client.email }}</p>
+                                                {% endif %}
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" 
+                                                        data-bs-dismiss="modal">
+                                                    <i class="fas fa-times me-1"></i> {% trans 'Cancel' %}
+                                                </button>
+                                                <form action="{% url 'clients:delete' client.id %}" method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="fas fa-trash-alt me-1"></i> {% trans 'Delete' %}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-users fa-3x mb-3"></i>
+                                    <h5>{% trans 'No clients found' %}</h5>
+                                    <p class="mb-0">{% trans 'Get started by adding your first client' %}</p>
+                                    <a href="{% url 'clients:create' %}" class="btn btn-primary mt-3">
+                                        <i class="fas fa-plus me-1"></i> {% trans 'Add Client' %}
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if is_paginated %}
+            <div class="card-footer bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-muted">
+                        {% blocktrans with start=page_obj.start_index end=page_obj.end_index total=page_obj.paginator.count %}
+                            Showing {{ start }} to {{ end }} of {{ total }} entries
+                        {% endblocktrans %}
+                    </div>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                                       aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                                       aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                            {{ num }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                                       aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                                       aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize any tooltips or other JS functionality
+        const deleteButtons = document.querySelectorAll('[data-bs-toggle="modal"]');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const target = this.getAttribute('data-bs-target');
+                const modal = new bootstrap.Modal(document.querySelector(target));
+                modal.show();
+            });
+        });
+    });
+</script>
+{% endblock %}

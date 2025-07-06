@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ invoice.invoice_number }} - Invoice Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Invoice #{{ invoice.invoice_number }}</h1>
+        <div class="btn-group">
+            <a href="{% url 'invoices:list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+            <a href="{% url 'invoices:pdf' invoice.pk %}" class="btn btn-primary">
+                <i class="fas fa-file-pdf"></i> Download PDF
+            </a>
+            {% if invoice.status != 'paid' %}
+                <a href="{% url 'invoices:edit' invoice.pk %}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Invoice Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>From:</h6>
+                    <address>
+                        {% if issuer_name %}
+                            <strong>{{ issuer_name }}</strong><br>
+                            {{ issuer_address|linebreaksbr }}<br>
+                            {{ issuer_city }}, {{ issuer_zip_code }}<br>
+                            {{ issuer_country }}<br>
+                            {% if issuer_vat_id %}VAT ID: {{ issuer_vat_id }}{% endif %}
+                        {% else %}
+                            <div class="text-danger">No company information found. Please update your company profile.</div>
+                        {% endif %}
+                    </address>
+                </div>
+                <div class="col-md-6">
+                    <h6>To:</h6>
+                    <address>
+                        <strong>{{ invoice.client.name }}</strong><br>
+                        {{ invoice.client.address|linebreaksbr }}<br>
+                        {{ invoice.client.city }}, {{ invoice.client.zip_code }}<br>
+                        {{ invoice.client.country }}<br>
+                        {% if invoice.client.vat_id %}VAT: {{ invoice.client.vat_id }}{% endif %}
+                    </address>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <p><strong>Invoice Number:</strong> {{ invoice.invoice_number }}</p>
+                    <p><strong>Date of Issue:</strong> {{ invoice.issue_date|date:"F d, Y" }}</p>
+                    <p><strong>Due Date:</strong> {{ invoice.due_date|date:"F d, Y" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-{{ invoice.status|lower }}">
+                            {{ invoice.get_status_display }}
+                        </span>
+                    </p>
+                    <p><strong>Total Amount:</strong> {{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}</p>
+                    {% if invoice.payment_date %}
+                        <p><strong>Payment Date:</strong> {{ invoice.payment_date|date:"F d, Y" }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Items</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Description</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Tax Rate</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice.items.all %}
+                    <tr>
+                        <td>{{ item.description }}</td>
+                        <td class="text-end">{{ item.quantity }}</td>
+                        <td class="text-end">{{ item.unit_price|floatformat:2 }} {{ invoice.currency }}</td>
+                        <td class="text-end">{{ item.tax_rate|floatformat:0 }}%</td>
+                        <td class="text-end">{{ item.total|floatformat:2 }} {{ invoice.currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                        <td class="text-end">{{ invoice.subtotal|floatformat:2 }} {{ invoice.currency }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="text-end"><strong>Tax ({{ invoice.get_tax_rate_display }}):</strong></td>
+                        <td class="text-end">{{ invoice.tax_amount|floatformat:2 }} {{ invoice.currency }}</td>
+                    </tr>
+                    <tr class="table-active">
+                        <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                        <td class="text-end"><strong>{{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    {% if invoice.notes %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Notes</h5>
+        </div>
+        <div class="card-body">
+            {{ invoice.notes|linebreaks }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_payment and pay_by_square %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Payment Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Bank Transfer</h6>
+                    <p>
+                        {% if invoice.client.account_number %}<strong>Account Number:</strong> {{ invoice.client.account_number }}<br>{% endif %}
+                        {% if invoice.client.iban %}<strong>IBAN:</strong> {{ invoice.client.iban }}<br>{% endif %}
+                        {% if invoice.client.bic_swift %}<strong>BIC/SWIFT:</strong> {{ invoice.client.bic_swift }}<br>{% endif %}
+                        {% if invoice.client.bank_name %}<strong>Bank Name:</strong> {{ invoice.client.bank_name }}<br>{% endif %}
+                        <strong>Amount:</strong> {{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}
+                    </p>
+                    <p class="text-muted">
+                        Please use the invoice number as the payment reference.
+                    </p>
+                </div>
+                <div class="col-md-6 text-center">
+                    <h6>Pay by QR Code</h6>
+                    <img src="data:image/png;base64,{{ pay_by_square.qr_code }}" alt="Payment QR Code" class="img-fluid" style="max-width: 200px;">
+                    <p class="mt-2">
+                        <small class="text-muted">Scan this QR code with your banking app to pay</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

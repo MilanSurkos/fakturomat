@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Invoice Management System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+<style>
+    /* Additional styles specific to dashboard */
+    .stat-card {
+        border-left: 4px solid;
+        transition: var(--transition);
+    }
+    .stat-card .card-body {
+        padding: 1.5rem;
+    }
+    .stat-card i {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .recent-activity-item {
+        border-left: 3px solid var(--primary-color);
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        transition: var(--transition);
+    }
+    .recent-activity-item:hover {
+        background-color: var(--light-gray);
+    }
+    .btn-icon-split {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .btn-icon-split .icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 100%;
+    }
+    .btn-icon-split .text {
+        padding: 0.375rem 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<!-- Dashboard for Authenticated Users -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">Dashboard</h1>
+                <p class="text-muted mb-0">Welcome back! Here's what's happening with your business.</p>
+            </div>
+            <div>
+                <a href="{% url 'invoices:create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>New Invoice
+                </a>
+            </div>
+        </div>
+        <p class="text-muted">Welcome back! Here's what's happening with your business.</p>
+    </div>
+</div>
+        
+        <!-- Stats Cards -->
+        <div class="row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card stat-card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total Invoices</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_invoices|default:"0" }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-file-invoice fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-primary stretched-link" href="{% url 'invoices:list' %}">View All</a>
+                        <div class="small text-primary"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card stat-card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Paid Invoices</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ paid_invoices|default:"0" }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-success stretched-link" href="{% url 'invoices:list' %}?status=paid">View Paid</a>
+                        <div class="small text-success"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card stat-card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Pending Invoices</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_invoices|default:"0" }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-clock fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-warning stretched-link" href="{% url 'invoices:list' %}?status=pending">View Pending</a>
+                        <div class="small text-warning"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card stat-card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Total Clients</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_clients|default:"0" }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-users fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-info stretched-link" href="{% url 'clients:list' %}">View Clients</a>
+                        <div class="small text-info"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Content Row -->
+        <div class="row">
+            <!-- Recent Invoices -->
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Recent Invoices</h6>
+                        <div class="dropdown no-arrow">
+                            <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownMenuLink">
+                                <li><a class="dropdown-item" href="{% url 'invoices:list' %}">View All</a></li>
+                                <li><a class="dropdown-item" href="{% url 'invoices:create' %}">Create New</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_invoices %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice #</th>
+                                            <th>Client</th>
+                                            <th>Date</th>
+                                            <th>Due Date</th>
+                                            <th>Total</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for invoice in recent_invoices %}
+                                        <tr>
+                                            <td>#{{ invoice.invoice_number }}</td>
+                                            <td>{{ invoice.client.name }}</td>
+                                            <td>{{ invoice.issue_date|date:"M d, Y" }}</td>
+                                            <td>{{ invoice.due_date|date:"M d, Y" }}</td>
+                                            <td>€{{ invoice.total_amount|floatformat:2 }}</td>
+                                            <td>
+                                                {% if invoice.status == 'paid' %}
+                                                    <span class="badge bg-success">{{ invoice.get_status_display }}</span>
+                                                {% elif invoice.status == 'sent' %}
+                                                    <span class="badge bg-primary">{{ invoice.get_status_display }}</span>
+                                                {% elif invoice.status == 'pending' %}
+                                                    <span class="badge bg-warning text-dark">{{ invoice.get_status_display }}</span>
+                                                {% elif invoice.status == 'draft' %}
+                                                    <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
+                                                {% elif invoice.status == 'overdue' %}
+                                                    <span class="badge bg-danger">{{ invoice.get_status_display }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">{{ invoice.get_status_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'invoices:detail' invoice.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'invoices:edit' invoice.id %}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p class="text-muted">No invoices found. Create your first invoice to get started.</p>
+                                <a href="{% url 'invoices:create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i> Create Invoice
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Recent Activity</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_activities %}
+                            <div class="activity-feed">
+                                {% for activity in recent_activities %}
+                                    <div class="recent-activity-item mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <h6 class="font-weight-bold mb-1">{{ activity.title }}</h6>
+                                            <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                        </div>
+                                        <p class="mb-1">{{ activity.description }}</p>
+                                        <a href="{{ activity.link }}" class="small">View Details</a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No recent activities</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_activities %}
+                            <div class="list-group list-group-flush">
+                                {% for activity in recent_activities %}
+                                    <div class="list-group-item border-0 px-0">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ activity.title }}</h6>
+                                            <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                        </div>
+                                        <p class="mb-1">{{ activity.description }}</p>
+                                        {% if activity.link %}
+                                            <small><a href="{{ activity.link }}">View details</a></small>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p class="text-muted">No recent activity to display.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Hero Section for Non-Authenticated Users -->
+<div class="container py-5">
+    <div class="row justify-content-center align-items-center">
+        <div class="col-lg-8 text-center">
+            <h1 class="display-4 fw-bold mb-4">Invoice Management System</h1>
+            <p class="lead mb-5">Streamline your invoicing process and manage your clients efficiently with our comprehensive invoicing solution.</p>
+            
+            <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-4 me-sm-3">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </a>
+                <a href="#" class="btn btn-outline-secondary btn-lg px-4" data-bs-toggle="modal" data-bs-target="#registerModal">
+                    <i class="fas fa-user-plus me-2"></i>Register
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-5 g-4">
+        <div class="col-md-4">
+            <div class="h-100 p-4 border rounded-3 shadow-sm">
+                <div class="feature-icon bg-primary bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h4>Fast & Easy</h4>
+                <p class="mb-0">Create and send professional invoices in minutes with our intuitive interface.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="h-100 p-4 border rounded-3 shadow-sm">
+                <div class="feature-icon bg-success bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h4>Track Payments</h4>
+                <p class="mb-0">Monitor your income and get real-time updates on outstanding payments.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="h-100 p-4 border rounded-3 shadow-sm">
+                <div class="feature-icon bg-info bg-gradient text-white rounded-3 mb-3 p-3 d-inline-block">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h4>Secure & Reliable</h4>
+                <p class="mb-0">Your data is protected with enterprise-grade security measures.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-5">
+        <div class="col-12 text-center">
+            <h2 class="h4 mb-4">Ready to get started?</h2>
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-5">
+                <i class="fas fa-rocket me-2"></i>Start Now
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Any additional JavaScript for the dashboard can go here
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard loaded');
+    });
+</script>
+{% endblock %}

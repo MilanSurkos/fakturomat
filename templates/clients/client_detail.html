@@ -1,0 +1,467 @@
+{% extends 'base.html' %}
+{% load i18n humanize %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'core:home' %}">{% trans 'Home' %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'clients:list' %}">{% trans 'Clients' %}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ client.name|truncatechars:20 }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="avatar-lg me-3">
+                        <div class="avatar-title bg-light text-primary rounded-circle">
+                            {{ client.name|slice:":1"|upper }}
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="mb-0">{{ client.name }}</h1>
+                        <div class="text-muted">
+                            <span class="badge bg-{% if client.type == 'company' %}info{% else %}secondary{% endif %}">
+                                {{ client.get_type_display }}
+                            </span>
+                            <span class="ms-2">
+                                <i class="far fa-calendar-alt me-1"></i> 
+                                {% trans 'Added' %} {{ client.created_at|date:"M d, Y" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'clients:edit' client.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-1"></i> {% trans 'Edit' %}
+                        </a>
+                        <a href="{% url 'clients:delete' client.id %}" 
+                           class="btn btn-outline-danger"
+                           onclick="return confirm('{% trans 'Are you sure you want to delete this client?' %}')">
+                            <i class="fas fa-trash-alt me-1"></i> {% trans 'Delete' %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-4">
+            <!-- Client Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans 'Client Information' %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted text-uppercase small">{% trans 'Contact' %}</h6>
+                        <ul class="list-unstyled mb-0">
+                            {% if client.email %}
+                                <li class="mb-2">
+                                    <i class="fas fa-envelope me-2 text-muted"></i>
+                                    <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                                </li>
+                            {% endif %}
+                            {% if client.phone %}
+                                <li class="mb-2">
+                                    <i class="fas fa-phone-alt me-2 text-muted"></i>
+                                    <a href="tel:{{ client.phone|cut:' ' }}">{{ client.phone }}</a>
+                                </li>
+                            {% endif %}
+                            {% if client.mobile %}
+                                <li>
+                                    <i class="fas fa-mobile-alt me-2 text-muted"></i>
+                                    <a href="tel:{{ client.mobile|cut:' ' }}">{{ client.mobile }}</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    
+                    {% if client.address or client.city or client.postal_code or client.country %}
+                    <div class="mb-3">
+                        <h6 class="text-muted text-uppercase small">{% trans 'Address' %}</h6>
+                        <address class="mb-0">
+                            {% if client.address %}{{ client.address }}<br>{% endif %}
+                            {% if client.postal_code or client.city %}
+                                {{ client.postal_code }} {{ client.city }}<br>
+                            {% endif %}
+                            {% if client.state %}{{ client.state }}<br>{% endif %}
+                            {{ client.country }}
+                        </address>
+                    </div>
+                    {% endif %}
+                    
+                    {% if client.account_number or client.iban or client.bic_swift or client.bank_name %}
+                    <div class="mb-3">
+                        <h6 class="text-muted text-uppercase small">{% trans 'Bank Information' %}</h6>
+                        <div class="mb-0">
+                            {% if client.bank_name %}
+                                <div class="mb-1">
+                                    <strong>{% trans 'Bank' %}:</strong> {{ client.bank_name }}
+                                </div>
+                            {% endif %}
+                            
+                            {% if client.account_number %}
+                                <div class="mb-1">
+                                    <strong>{% trans 'Account Number' %}:</strong> {{ client.account_number }}
+                                </div>
+                            {% endif %}
+                            
+                            {% if client.iban %}
+                                <div class="mb-1">
+                                    <strong>{% trans 'IBAN' %}:</strong> {{ client.iban }}
+                                </div>
+                            {% endif %}
+                            
+                            {% if client.bic_swift %}
+                                <div class="mb-1">
+                                    <strong>{% trans 'BIC/SWIFT' %}:</strong> {{ client.bic_swift }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if client.website %}
+                    <div class="mb-3">
+                        <h6 class="text-muted text-uppercase small">{% trans 'Website' %}</h6>
+                        <a href="{{ client.website }}" target="_blank" rel="noopener noreferrer">
+                            {{ client.website|truncatechars:30 }}
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% if client.tax_number or client.vat_number %}
+                    <div>
+                        <h6 class="text-muted text-uppercase small">{% trans 'Tax Information' %}</h6>
+                        <dl class="row mb-0">
+                            {% if client.tax_number %}
+                                <dt class="col-sm-4">{% trans 'Tax Number' %}:</dt>
+                                <dd class="col-sm-8">{{ client.tax_number }}</dd>
+                            {% endif %}
+                            {% if client.vat_number %}
+                                <dt class="col-sm-4">{% trans 'VAT Number' %}:</dt>
+                                <dd class="col-sm-8">{{ client.vat_number }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Statistics Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{% trans 'Statistics' %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <div class="h2 mb-1">{{ total_invoices|default:0 }}</div>
+                                <div class="text-muted small">{% trans 'Total Invoices' %}</div>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <div class="h2 text-success mb-1">{{ total_paid|default:0|intcomma }} €</div>
+                                <div class="text-muted small">{% trans 'Total Paid' %}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="h2 text-warning mb-1">{{ pending_invoices|default:0 }}</div>
+                                <div class="text-muted small">{% trans 'Pending' %}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="h2 text-danger mb-1">{{ overdue_invoices|default:0 }}</div>
+                                <div class="text-muted small">{% trans 'Overdue' %}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="col-lg-8">
+            <!-- Notes Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{% trans 'Notes' %}</h5>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#addNoteCollapse" aria-expanded="false" aria-controls="addNoteCollapse">
+                        <i class="fas fa-plus me-1"></i> {% trans 'Add Note' %}
+                    </button>
+                </div>
+                
+                <!-- Add Note Form -->
+                <div class="collapse" id="addNoteCollapse">
+                    <div class="card-body border-bottom">
+                        <form method="post" action="{% url 'clients:add_note' client.id %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ note_form.note|as_crispy_field }}
+                            </div>
+                            <div class="text-end">
+                                <button type="button" class="btn btn-outline-secondary me-2" 
+                                        data-bs-toggle="collapse" data-bs-target="#addNoteCollapse">
+                                    {% trans 'Cancel' %}
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> {% trans 'Save Note' %}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Notes List -->
+                <div class="list-group list-group-flush">
+                    {% if notes %}
+                        {% for note in notes %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="avatar-sm me-2">
+                                        <div class="avatar-title bg-light text-primary rounded-circle">
+                                            {{ note.created_by.get_full_name|slice:1|default:note.created_by.username|slice:1|upper }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">
+                                            {{ note.created_by.get_full_name|default:note.created_by.username }}
+                                        </h6>
+                                        <small class="text-muted">
+                                            {{ note.created_at|timesince }} {% trans 'ago' %}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-link text-muted" type="button" 
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#"
+                                               onclick="return confirm('{% trans 'Delete this note?' %}')">
+                                                <i class="fas fa-trash-alt me-2"></i> {% trans 'Delete' %}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                {{ note.note|linebreaks }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="list-group-item text-center py-4 text-muted">
+                            <i class="far fa-sticky-note fa-2x mb-2"></i>
+                            <p class="mb-0">{% trans 'No notes found' %}</p>
+                            <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#addNoteCollapse" aria-expanded="false" 
+                                    aria-controls="addNoteCollapse">
+                                {% trans 'Add your first note' %}
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                {% if notes.has_other_pages %}
+                <div class="card-footer bg-white">
+                    <nav aria-label="Notes pagination">
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if notes.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?notes_page={{ notes.previous_page_number }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                                </li>
+                            {% endif %}
+                            
+                            {% for i in notes.paginator.page_range %}
+                                {% if notes.number == i %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ i }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?notes_page={{ i }}">{{ i }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if notes.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?notes_page={{ notes.next_page_number }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Recent Invoices Card -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{% trans 'Recent Invoices' %}</h5>
+                    <a href="{% url 'invoices:create' %}?client={{ client.id }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> {% trans 'New Invoice' %}
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_invoices %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>{% trans 'Invoice #' %}</th>
+                                        <th>{% trans 'Date' %}</th>
+                                        <th>{% trans 'Due Date' %}</th>
+                                        <th class="text-end">{% trans 'Amount' %}</th>
+                                        <th>{% trans 'Status' %}</th>
+                                        <th class="text-end">{% trans 'Actions' %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invoice in recent_invoices %}
+                                    <tr>
+                                        <td>#{{ invoice.invoice_number }}</td>
+                                        <td>{{ invoice.date|date:"M d, Y" }}</td>
+                                        <td>{{ invoice.due_date|date:"M d, Y" }}</td>
+                                        <td class="text-end">{{ invoice.total_amount|floatformat:2 }} €</td>
+                                        <td>
+                                            <span class="badge bg-{{ invoice.status }}">
+                                                {{ invoice.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="{% url 'invoices:detail' invoice.id %}" 
+                                               class="btn btn-sm btn-outline-primary"
+                                               data-bs-toggle="tooltip" title="{% trans 'View Invoice' %}">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'invoices:pdf' invoice.id %}" 
+                                               class="btn btn-sm btn-outline-secondary"
+                                               data-bs-toggle="tooltip" title="{% trans 'Download PDF' %}">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="text-muted mb-3">
+                                <i class="fas fa-file-invoice fa-3x"></i>
+                            </div>
+                            <h5>{% trans 'No invoices found' %}</h5>
+                            <p class="text-muted mb-0">
+                                {% trans 'This client does not have any invoices yet.' %}
+                            </p>
+                            <a href="{% url 'invoices:create' %}?client={{ client.id }}" 
+                               class="btn btn-primary mt-3">
+                                <i class="fas fa-plus me-1"></i> {% trans 'Create First Invoice' %}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if recent_invoices.has_other_pages %}
+                <div class="card-footer bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            {% blocktrans with start=recent_invoices.start_index end=recent_invoices.end_index total=recent_invoices.paginator.count %}
+                                Showing {{ start }} to {{ end }} of {{ total }} entries
+                            {% endblocktrans %}
+                        </div>
+                        <nav aria-label="Invoices pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                {% if recent_invoices.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?invoices_page={{ recent_invoices.previous_page_number }}">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for i in recent_invoices.paginator.page_range %}
+                                    {% if recent_invoices.number == i %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ i }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?invoices_page={{ i }}">{{ i }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if recent_invoices.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?invoices_page={{ recent_invoices.next_page_number }}">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Handle note deletion
+        const deleteNoteButtons = document.querySelectorAll('.delete-note');
+        deleteNoteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('{% trans "Are you sure you want to delete this note?" %}')) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = this.href;
+                    form.innerHTML = `
+                        {% csrf_token %}
+                        <input type="hidden" name="_method" value="DELETE">
+                    `;
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,253 @@
+{% load static %}
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faktúra {{ invoice.invoice_number|default:'Nová faktúra' }}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="pdf-export">
+<div class="invoice-container">
+    <div class="invoice-header" style="display: flex; align-items: center; justify-content: center; margin-bottom: 20px; gap: 5px;">
+        <img src="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo.svg' %}" alt="Company Logo" style="height: 50px; width: auto;">
+    </div>
+  <!-- Invoice number -->
+  <div class="text-center mb-4">
+    <div class="font-bold text-lg">FAKTÚRA {{ invoice.invoice_number|default:'Nová faktúra' }}</div>
+  </div>
+
+  <!-- Supplier and Customer Info -->
+  <div class="parties">
+    <div class="supplier-info">
+      <div class="info-title">Supplier:</div>
+      {% if company %}
+        <div class="font-bold">{{ company.company_name }}</div>
+        {% if company.address_line1 %}<div>{{ company.address_line1 }}</div>{% endif %}
+        {% if company.address_line2 %}<div>{{ company.address_line2 }}</div>{% endif %}
+        {% if company.city %}
+          <div>
+            {{ company.city }}{% if company.postal_code %}, {{ company.postal_code }}{% endif %}
+            {% if company.country %}, {{ company.country }}{% endif %}
+          </div>
+        {% endif %}
+        
+        <div class="grid grid-cols-2 gap-1 mt-2">
+          {% if company.tax_id %}
+          <div>Tax ID (DIČ):</div><div>{{ company.tax_id }}</div>
+          {% endif %}
+          {% if company.email %}
+          <div>Email:</div><div>{{ company.email }}</div>
+          {% endif %}
+          {% if company.phone %}
+          <div>Phone:</div><div>{{ company.phone }}</div>
+          {% endif %}
+          {% if company.bank_account %}
+          <div>IBAN:</div><div>{{ company.bank_account }}</div>
+          {% endif %}
+          {% if company.website %}
+          <div>Website:</div><div>{{ company.website }}</div>
+          {% endif %}
+          {% if company.swift_bic %}
+          <div>SWIFT/BIC:</div><div>{{ company.swift_bic }}</div>
+          {% endif %}
+          {% if company.bank_name %}
+          <div>Bank:</div><div>{{ company.bank_name }}</div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="text-red-500">No company information available. Please update your company profile.</div>
+      {% endif %}
+    </div>
+    </div>
+
+    <!-- Logo -->
+    <div class="logo-container">
+      <div class="logo">
+        <svg viewBox="0 0 100 100" width="100" height="100">
+          <path d="M10,10 L90,90 M90,10 L10,90" stroke="#4361ee" stroke-width="8" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="client-info">
+      <div class="info-title">Customer:</div>
+      <div class="font-bold">{{ invoice.client.name|default:'Meno odberateľa' }}</div>
+      {% if invoice.client.address %}<div>{{ invoice.client.address }}</div>{% endif %}
+      {% if invoice.client.city or invoice.client.zip_code %}
+      <div>{% if invoice.client.zip_code %}{{ invoice.client.zip_code }} {% endif %}{{ invoice.client.city|default:'' }}</div>
+      {% endif %}
+      {% if invoice.client.country %}<div>{{ invoice.client.country }}</div>{% endif %}
+      
+      {% if invoice.client.registration_number or invoice.client.tax_id %}
+      <div class="mt-2">
+        {% if invoice.client.registration_number %}
+        <div>IČO: {{ invoice.client.registration_number }}</div>
+        {% endif %}
+        {% if invoice.client.tax_id %}
+        <div>DIČ: {{ invoice.client.tax_id }}</div>
+        <div>IČ DPH: {{ invoice.client.tax_id }}</div>
+        {% endif %}
+      </div>
+      {% endif %}
+      
+      {% if invoice.client.email or invoice.client.phone %}
+      <div class="mt-2">
+        {% if invoice.client.email %}<div>{{ invoice.client.email }}</div>{% endif %}
+        {% if invoice.client.phone %}<div>{{ invoice.client.phone }}</div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Invoice Details -->
+  <div class="invoice-details">
+    <div class="detail-item">
+      <span class="detail-label">Dátum vystavenia:</span>
+      <span>{{ invoice.issue_date|date:'d.m.Y'|default:'-' }}</span>
+    </div>
+    
+    <div class="detail-item">
+      <span class="detail-label">Dátum dodania:</span>
+      <span>{{ invoice.delivery_date|date:'d.m.Y'|default:invoice.issue_date|date:'d.m.Y'|default:'-' }}</span>
+    </div>
+    
+    <div class="detail-item">
+      <span class="detail-label">Dátum splatnosti:</span>
+      <span>{{ invoice.due_date|date:'d.m.Y'|default:'-' }}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Forma úhrady:</span>
+      <span>{{ invoice.get_payment_method_display|default:'-' }}</span>
+    </div>
+    
+    {% if invoice.order_number %}
+    <div class="detail-item">
+      <span class="detail-label">Číslo objednávky:</span>
+      <span>{{ invoice.order_number }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="detail-item">
+      <span class="detail-label">Variabilný symbol:</span>
+      <span>{{ invoice.variable_symbol|default:invoice.id|default:'-' }}</span>
+    </div>
+    
+    {% if invoice.constant_symbol %}
+    <div class="detail-item">
+      <span class="detail-label">Konštantný symbol:</span>
+      <span>{{ invoice.constant_symbol }}</span>
+    </div>
+    {% endif %}
+    
+    {% if invoice.specific_symbol %}
+    <div class="detail-item">
+      <span class="detail-label">Špecifický symbol:</span>
+      <span>{{ invoice.specific_symbol }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Items Table -->
+  <div class="py-4">
+    <div class="text-sm mb-2">
+      Fakturujeme Vám za vykonané práce a dodaný materiál nasledujúce položky:
+    </div>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Popis položky</th>
+          <th class="text-center">Množstvo</th>
+          <th class="text-center">MJ</th>
+          <th class="text-right">Cena za MJ</th>
+          <th class="text-right">Celkom bez DPH</th>
+          <th class="text-center">DPH</th>
+          <th class="text-right">Celkom s DPH</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in invoice.items.all %}
+        <tr class="border-b border-gray-200">
+          <td class="py-2">{{ item.description }}</td>
+          <td class="text-center">{{ item.quantity|format_decimal:'1,00' }}</td>
+          <td class="text-center">{{ item.unit|default:'ks' }}</td>
+          <td class="text-right">{{ item.unit_price|format_decimal:'0,00' }}</td>
+          <td class="text-right">{{ item.line_total_before_tax|format_decimal:'0,00' }}</td>
+          <td class="text-center">{{ item.vat_rate|floatformat:0|default:'20' }}%</td>
+          <td class="text-right">{{ item.line_total_after_tax|format_decimal:'0,00' }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="py-4 text-center text-gray-500">Žiadne položky</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="text-right">Spolu:</td>
+          <td class="text-right">{{ invoice.subtotal|format_decimal:'0,00' }} €</td>
+          <td class="text-right">{{ invoice.tax_amount|format_decimal:'0,00' }} €</td>
+          <td class="text-right">{{ invoice.total_amount|format_decimal:'0,00' }} €</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>Thank you for your trust. If you have any questions, please do not hesitate to contact us.</p>
+  </div>
+  <div class="grid grid-cols-4 gap-2 pt-2" style="margin-top: 15px;">
+    <div class="col-span-3">
+      <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+        <div class="signature">
+          <p>Vystavil:</p>
+          <p>_________________________</p>
+        </div>
+        <div class="signature">
+          <p>Zákaznícky podpis:</p>
+          <p>_________________________</p>
+        </div>
+      </div>
+      
+      <div style="margin-top: 20px; font-size: 10px; color: #6c757d;">
+        <p>{{ company.company_name|default:'Názov spoločnosti' }} | 
+           {% if company.address_line1 %}{{ company.address_line1 }}, {% endif %}
+           {% if company.postal_code %}{{ company.postal_code }} {% endif %}{{ company.city|default:'' }}
+           {% if company.country %}, {{ company.country }}{% endif %}
+        </p>
+        <p>
+          {% if company.email %}E-mail: {{ company.email }} | {% endif %}
+          {% if company.phone %}Tel: {{ company.phone }} | {% endif %}
+          {% if company.website %}Web: {{ company.website }}{% endif %}
+        </p>
+      </div>
+    </div>
+    
+    {% if pay_by_square %}
+    <div class="border border-gray-300 p-2 bg-white">
+      <div class="text-center text-xs font-semibold mb-1">Platba cez Pay by Square</div>
+      <div class="border border-gray-200 bg-white p-1 flex flex-col items-center justify-center">
+        <img src="data:image/png;base64,{{ pay_by_square.qr_code }}" alt="Pay by Square" class="w-32 h-32" />
+        <div class="mt-2 text-xxs text-center">
+          <div class="font-medium">Údaje pre platbu</div>
+          <div class="text-left">
+            <div class="flex justify-between">
+              <span class="text-gray-600">Suma:</span>
+              <span class="font-mono">{{ payment.amount|floatformat:2 }} {{ payment.currency }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Variabilný symbol:</span>
+              <span class="font-mono">{{ payment.vs|default:'-' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>
