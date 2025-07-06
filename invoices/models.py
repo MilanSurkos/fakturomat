@@ -358,6 +358,11 @@ class InvoiceItem(models.Model):
         Returns:
             Decimal: The total amount including tax
         """
+        # If either quantity or unit_price is None, set total to 0
+        if self.quantity is None or self.unit_price is None:
+            self.total = Decimal('0.00')
+            return self.total
+            
         # Calculate line total before tax
         line_total = self.quantity * self.unit_price
         

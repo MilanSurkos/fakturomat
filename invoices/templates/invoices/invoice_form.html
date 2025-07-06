@@ -73,7 +73,7 @@
                                 {{ form.client.label }}
                                 {% if form.client.field.required %}<span class="text-danger">*</span>{% endif %}
                             </label>
-                            {{ form.client }}
+                            {{ form.client|add_class:'form-select' }}
                             {% if form.client.errors %}
                                 <div class="invalid-feedback d-block">
                                     {{ form.client.errors|join:", " }}
@@ -87,7 +87,7 @@
                                     {{ form.issue_date.label }}
                                     {% if form.issue_date.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
-                                {{ form.issue_date }}
+                                {{ form.issue_date|add_class:'form-control' }}
                                 {% if form.issue_date.errors %}
                                     <div class="invalid-feedback d-block">
                                         {{ form.issue_date.errors|join:", " }}
@@ -100,7 +100,7 @@
                                     {{ form.due_date.label }}
                                     {% if form.due_date.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
-                                {{ form.due_date }}
+                                {{ form.due_date|add_class:'form-control' }}
                                 {% if form.due_date.errors %}
                                     <div class="invalid-feedback d-block">
                                         {{ form.due_date.errors|join:", " }}
@@ -115,7 +115,7 @@
                                     {{ form.status.label }}
                                     {% if form.status.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
-                                {{ form.status }}
+                                {{ form.status|add_class:'form-select' }}
                                 {% if form.status.errors %}
                                     <div class="invalid-feedback d-block">
                                         {{ form.status.errors|join:", " }}
@@ -165,20 +165,20 @@
                     {{ formset.management_form }}
                     <div id="formset-container">
                         {% for form in formset %}
-                            <div class="formset-form row mb-3 border-bottom pb-3 align-items-end" data-form-prefix="{{ form.prefix }}">
-                                {{ form.id }}
-                                <div class="col-md-4">
-                                    <label for="{{ form.description.id_for_label }}" class="form-label">
-                                        {{ form.description.label }}
-                                        <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.description }}
-                                    {% if form.description.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.description.errors|join:", " }}
-                                        </div>
-                                    {% endif %}
-                                </div>
+                        <div class="formset-form row mb-3 border-bottom pb-3 align-items-end" data-form-prefix="{{ form.prefix }}">
+                            {{ form.id }}
+                            <div class="col-md-4">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">
+                                    {{ form.description.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.description|add_class:'form-control'|attr:'placeholder:Enter item description' }}
+                                {% if form.description.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.description.errors|join:", " }}
+                                    </div>
+                                {% endif %}
+                            </div>
                                 <div class="col-md-2">
                                     <label for="{{ form.quantity.id_for_label }}" class="form-label">
                                         {{ form.quantity.label }}
@@ -186,7 +186,7 @@
                                     </label>
                                     <div class="input-group">
                                         <button type="button" class="btn btn-outline-secondary quantity-control" data-action="decrease">-</button>
-                                        {{ form.quantity }}
+                                        {{ form.quantity|add_class:'form-control'|attr:'min:1'|attr:'placeholder:Qty' }}
                                         <button type="button" class="btn btn-outline-secondary quantity-control" data-action="increase">+</button>
                                     </div>
                                     {% if form.quantity.errors %}
@@ -202,7 +202,7 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">€</span>
-                                        {{ form.unit_price }}
+                                        {{ form.unit_price|add_class:'form-control'|attr:'step:0.01'|attr:'min:0'|attr:'placeholder:0.00' }}
                                     </div>
                                     {% if form.unit_price.errors %}
                                         <div class="invalid-feedback d-block">
@@ -252,7 +252,6 @@
                         <div id="empty-form" class="d-none">
                             <div class="formset-form row mb-3 border-bottom pb-3 align-items-end" data-form-prefix="__prefix__">
                                 {{ formset.empty_form.id }}
-                                
                                 <div class="col-md-4">
                                     <label for="id_items-__prefix__-description" class="form-label">
                                         Description
@@ -272,6 +271,11 @@
                                     <div class="input-group">
                                         <button type="button" class="btn btn-outline-secondary quantity-control" data-action="decrease">-</button>
                                         {{ formset.empty_form.quantity|add_class:'form-control text-center'|attr:'required:true'|attr:'min:1'|attr:'step:1'|attr:'value:1' }}
+                                        <button type="button" class="btn btn-outline-secondary quantity-control" data-action="increase">+</button>
+                                    </div>
+                                    <div class="invalid-feedback">
+                                        Please provide a valid quantity.
+                                    </div>
                                 </div>
                                 
                                 <div class="col-md-2">
@@ -280,11 +284,11 @@
                                         <span class="text-danger">*</span>
                                     </label>
                                     <div class="input-group">
-                                        <span class="input-group-text">{{ form.currency.value|default:'€' }}</span>
+                                        <span class="input-group-text">€</span>
                                         {{ formset.empty_form.unit_price|add_class:'form-control item-unit-price'|attr:'required:true'|attr:'min:0'|attr:'step:0.01'|attr:'data-field:unit_price' }}
                                     </div>
-                                    <div class="invalid-feedback">Please enter a valid price</div>
-                                        Please provide a valid unit price.
+                                    <div class="invalid-feedback">
+                                        Please enter a valid price
                                     </div>
                                 </div>
                                 
@@ -399,23 +403,89 @@
     /* Hide number input spinners for all browsers */
     input[type="number"] {
         -moz-appearance: textfield;
+        text-align: center;
     }
-    
+
     input[type="number"]::-webkit-outer-spin-button,
     input[type="number"]::-webkit-inner-spin-button {
         -webkit-appearance: none;
         margin: 0;
     }
-    
-    /* Ensure the input group still looks good */
-    .input-group input[type="number"] {
-        -moz-appearance: textfield;
+
+    /* Form styling */
+    .form-control, .form-select {
+        border-radius: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
     }
-    
-    .input-group input[type="number"]::-webkit-outer-spin-button,
-    .input-group input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Input group styling */
+    .input-group-text {
+        background-color: #f8f9fa;
+    }
+
+    /* Quantity controls */
+    .quantity-control {
+        width: 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Form sections */
+    .card {
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        padding: 0.75rem 1.25rem;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Form row spacing */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    /* Error messages */
+    .invalid-feedback {
+        font-size: 0.8rem;
+    }
+
+    /* Summary section */
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+        font-weight: 600;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .card-body {
+            padding: 1rem;
+        }
+
+        .form-control, .form-select {
+            font-size: 1rem;
+        }
     }
 </style>
 {% endblock %}
@@ -430,13 +500,13 @@
         console.log('Add button:', document.getElementById('add-item'));
         console.log('Formset container:', document.getElementById('formset-container'));
         console.log('Empty form template:', document.getElementById('empty-form'));
-        
+
         // Initial update of invoice totals when the page loads
         if (window.invoiceForm) {
             // Trigger a recalculation of totals after a short delay to ensure all elements are loaded
             setTimeout(() => {
                 window.invoiceForm.updateInvoiceTotals();
-                
+
                 // Currency is fixed to EUR, no need for change listener
             }, 100);
         }

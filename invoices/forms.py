@@ -1,4 +1,5 @@
 from django import forms
+from decimal import Decimal
 from .models import Invoice, InvoiceItem
 
 class InvoiceForm(forms.ModelForm):
@@ -157,9 +158,9 @@ class InvoiceForm(forms.ModelForm):
                 for error in items_formset.non_form_errors():
                     self.add_error(None, error)
             
-            # Check for at least one valid item
+            # Check for at least one valid item and validate each item
             has_valid_forms = False
-            for form in items_formset.forms:
+            for i, form in enumerate(items_formset.forms):
                 if form.cleaned_data.get('DELETE', False):
                     continue
                     
@@ -170,11 +171,20 @@ class InvoiceForm(forms.ModelForm):
                 )
                 
                 if has_data:
-                    has_valid_forms = True
-                    break
+                    # Validate required fields for items with data
+                    if not form.cleaned_data.get('description'):
+                        form.add_error('description', 'This field is required.')
+                    if form.cleaned_data.get('quantity') is None or form.cleaned_data.get('quantity') <= 0:
+                        form.add_error('quantity', 'Quantity must be greater than 0.')
+                    if form.cleaned_data.get('unit_price') is None or form.cleaned_data.get('unit_price') < 0:
+                        form.add_error('unit_price', 'Unit price must be a positive number.')
+                    
+                    # Only consider the form valid if it has no errors
+                    if not form.errors:
+                        has_valid_forms = True
             
             if not has_valid_forms:
-                error_msg = 'At least one invoice item is required.'
+                error_msg = 'At least one valid invoice item is required.'
                 logger.warning(f"[form:clean] {error_msg}")
                 self.add_error(None, error_msg)
             
@@ -245,6 +255,11 @@ class InvoiceForm(forms.ModelForm):
                     
                     # Save the new items
                     for item in items:
+                        # Skip items that are missing required fields
+                        if not item.description or item.quantity is None or item.unit_price is None:
+                            logger.warning(f"Skipping invalid item: {item}")
+                            continue
+                            
                         item.invoice = instance
                         item.save()
                         logger.info(f"Saved invoice item: {item.description}")
@@ -330,12 +345,12 @@ class InvoiceItemForm(forms.ModelForm):
         description = cleaned_data.get('description', '')
         if description is not None:
             description = str(description).strip()
-        quantity = cleaned_data.get('quantity', 0)
-        unit_price = cleaned_data.get('unit_price', 0)
+        quantity = cleaned_data.get('quantity')
+        unit_price = cleaned_data.get('unit_price')
         vat_rate = cleaned_data.get('vat_rate', 0)
 
         # Check if this is an empty form (all fields empty or deleted)
-        is_empty = not any([description, quantity, unit_price])
+        is_empty = not any([description, quantity is not None, unit_price is not None])
 
         # If the form is empty and not marked for deletion, skip validation
         if is_empty and not cleaned_data.get('DELETE', False):
@@ -347,42 +362,54 @@ class InvoiceItemForm(forms.ModelForm):
         # If the form is being deleted, skip further validation
         if cleaned_data.get('DELETE', False):
             return cleaned_data
+            
+        # If we have a description but missing quantity or unit_price, raise validation error
+        if description and (quantity is None or unit_price is None):
+            if quantity is None:
+                self.add_error('quantity', 'This field is required.')
+            if unit_price is None:
+                self.add_error('unit_price', 'This field is required.')
+            return cleaned_data
 
         # If we get here, the form has data and is not being deleted
 
         # Only validate if this is a form submission
         if is_submitted:
-            # Validate required fields
-            if not description:
-                self.add_error('description', 'This field is required')
-
-            if quantity is None or quantity <= 0:
-                self.add_error('quantity', 'Quantity must be greater than 0')
-
-            if unit_price is None or unit_price < 0:
+            # Ensure quantity is provided and positive
+            if quantity is None:
+                self.add_error('quantity', 'Quantity is required')
+            elif quantity <= 0:
+                self.add_error('quantity', 'Quantity must be greater than zero')
+                
+            # Ensure unit price is provided and not negative
+            if unit_price is None:
+                self.add_error('unit_price', 'Unit price is required')
+            elif unit_price < 0:
                 self.add_error('unit_price', 'Unit price cannot be negative')
-
-        # Always try to calculate totals if we have data
-        if description and quantity and unit_price is not None:
-            try:
-                quantity = float(quantity)
-                unit_price = float(unit_price)
-                vat_rate = float(vat_rate) if vat_rate is not None else 0
-
-                subtotal = quantity * unit_price
-                tax_amount = subtotal * (vat_rate / 100)
-                total = subtotal + tax_amount
-
-                # Round to 2 decimal places to avoid floating point issues
-                cleaned_data['subtotal'] = round(float(subtotal), 2)
-                cleaned_data['tax_amount'] = round(float(tax_amount), 2)
-                cleaned_data['total'] = round(float(total), 2)
-            except (TypeError, ValueError) as e:
-                if is_submitted:  # Only show errors on actual form submission
+                
+            # Only calculate total if both fields are valid and provided
+            if not self.errors and quantity is not None and unit_price is not None:
+                try:
+                    # Convert to Decimal for precise calculations
+                    from decimal import Decimal
+                    quantity_decimal = Decimal(str(quantity))
+                    unit_price_decimal = Decimal(str(unit_price))
+                    vat_rate_decimal = Decimal(str(vat_rate)) if vat_rate is not None else Decimal('0')
+                    
+                    # Calculate totals
+                    subtotal = quantity_decimal * unit_price_decimal
+                    tax_amount = subtotal * (vat_rate_decimal / Decimal('100'))
+                    total = subtotal + tax_amount
+                    
+                    # Update cleaned data with calculated values
+                    cleaned_data['subtotal'] = subtotal.quantize(Decimal('0.01'))
+                    cleaned_data['tax_amount'] = tax_amount.quantize(Decimal('0.01'))
+                    cleaned_data['total'] = total.quantize(Decimal('0.01'))
+                    
+                except (TypeError, ValueError, decimal.InvalidOperation) as e:
                     self.add_error(None, f'Error calculating totals: {str(e)}')
-
+        
         return cleaned_data
-
 
 # Formset for invoice items
 class BaseInvoiceItemFormSet(forms.BaseInlineFormSet):
@@ -404,111 +431,84 @@ class BaseInvoiceItemFormSet(forms.BaseInlineFormSet):
         """
         super().clean()
         
-        # Check if this is a form submission or just initial page load
-        is_submitted = any(form.data for form in self.forms if hasattr(form, 'data'))
-        
-        # Initialize totals
-        subtotal = 0
-        total_tax = 0
-        total = 0
-        has_valid_forms = False
-        
-        # Check if we have at least one non-empty, non-deleted form
+        # Skip validation if there are already errors
+        if self._non_form_errors:
+            return
+            
+        # Check if we have at least one valid non-deleted form
+        valid_forms = []
         for form in self.forms:
-            # Skip deleted forms
             if form.cleaned_data.get('DELETE', False):
                 continue
                 
-            # Check if this form has any data
-            has_data = any(
-                field not in (None, '', 0, '0', 0.0, '0.0')
-                for field_name, field in form.cleaned_data.items()
-                if field_name not in ('id', 'invoice', 'DELETE', 'vat_rate')
-            )
+            # Check if this form has the required fields
+            has_description = bool(form.cleaned_data.get('description', '').strip())
+            has_quantity = form.cleaned_data.get('quantity') is not None
+            has_unit_price = form.cleaned_data.get('unit_price') is not None
             
-            # If form has data, check if required fields are present
-            if has_data:
-                # Check required fields
-                if not form.cleaned_data.get('description'):
+            # If any field is present, we consider it a form with data
+            if has_description or has_quantity or has_unit_price:
+                # If any required field is missing, mark it as an error
+                if not has_description:
                     form.add_error('description', 'This field is required.')
-                if not form.cleaned_data.get('quantity'):
+                if not has_quantity:
                     form.add_error('quantity', 'This field is required.')
-                if not form.cleaned_data.get('unit_price'):
+                if not has_unit_price:
                     form.add_error('unit_price', 'This field is required.')
                 
-                # If no field errors, it's a valid form
-                if not form.errors:
-                    has_valid_forms = True
+                # Only add to valid_forms if all required fields are present and valid
+                if has_description and has_quantity and has_unit_price and not form.errors:
+                    valid_forms.append(form)
         
-        # Only validate if this is a form submission
-        if is_submitted and not has_valid_forms and not any(form.cleaned_data.get('DELETE', False) for form in self.forms):
-            # Check if this is because all forms are empty or if there are actual errors
-            all_empty = all(
-                all(
-                    field in (None, '', 0, '0', 0.0, '0.0')
-                    for field_name, field in form.cleaned_data.items()
-                    if field_name not in ('id', 'invoice', 'DELETE', 'vat_rate')
-                )
-                for form in self.forms
-                if not form.cleaned_data.get('DELETE', False)
+        # If no valid forms, raise validation error
+        if not valid_forms and any(not form.cleaned_data.get('DELETE', False) for form in self.forms):
+            raise forms.ValidationError(
+                'At least one valid item is required.',
+                code='missing_items'
             )
             
-            if all_empty:
-                raise forms.ValidationError('At least one invoice item is required.')
+        # Calculate totals from valid forms
+        subtotal = Decimal('0.00')
+        tax_amount = Decimal('0.00')
+        total = Decimal('0.00')
         
-        # If no valid forms and not submitted, return early
-        if not has_valid_forms and not is_submitted:
-            return
-        
-        # Calculate totals from all non-deleted forms with data
-        for form in self.forms:
+        for form in valid_forms:
             if form.cleaned_data.get('DELETE', False):
                 continue
                 
-            # Skip empty forms
-            is_empty = all(
-                field in (None, '', 0, '0', 0.0, '0.0')
-                for field_name, field in form.cleaned_data.items()
-                if field_name not in ('id', 'invoice', 'DELETE', 'vat_rate')
-            )
+            # Get values from form's cleaned_data
+            quantity = form.cleaned_data.get('quantity', Decimal('0'))
+            unit_price = form.cleaned_data.get('unit_price', Decimal('0'))
+            vat_rate = form.cleaned_data.get('vat_rate')
+            # Ensure vat_rate is not None and is a Decimal
+            if vat_rate is None:
+                vat_rate = Decimal('0')
             
-            if is_empty:
-                continue
-                
-            # Get values from form's cleaned_data (populated by InvoiceItemForm.clean)
-            if 'subtotal' in form.cleaned_data and form.cleaned_data['subtotal'] is not None:
-                try:
-                    subtotal += float(form.cleaned_data['subtotal'])
-                except (TypeError, ValueError):
-                    pass
-                    
-            if 'tax_amount' in form.cleaned_data and form.cleaned_data['tax_amount'] is not None:
-                try:
-                    total_tax += float(form.cleaned_data['tax_amount'])
-                except (TypeError, ValueError):
-                    pass
-                    
-            if 'total' in form.cleaned_data and form.cleaned_data['total'] is not None:
-                try:
-                    total += float(form.cleaned_data['total'])
-                except (TypeError, ValueError):
-                    pass
+            # Calculate item totals
+            item_subtotal = quantity * unit_price
+            item_tax = item_subtotal * (vat_rate / Decimal('100'))
+            item_total = item_subtotal + item_tax
+            
+            # Update running totals
+            subtotal += item_subtotal
+            tax_amount += item_tax
+            total += item_total
+            
+            # Update the form's cleaned data with calculated values
+            form.cleaned_data['subtotal'] = item_subtotal.quantize(Decimal('0.01'))
+            form.cleaned_data['tax_amount'] = item_tax.quantize(Decimal('0.01'))
+            form.cleaned_data['total'] = item_total.quantize(Decimal('0.01'))
         
-        # Round to 2 decimal places to avoid floating point issues
-        subtotal = round(subtotal, 2)
-        total_tax = round(total_tax, 2)
-        total = round(total, 2)
-        
-        # Store totals in the formset for later use in the view
-        self.subtotal = subtotal
-        self.total_tax = total_tax
-        self.total = total
+        # Store calculated totals in the formset for template use
+        self.subtotal = subtotal.quantize(Decimal('0.01'))
+        self.tax_amount = tax_amount.quantize(Decimal('0.01'))
+        self.total_amount = total.quantize(Decimal('0.01'))
         
         # Store in the form's data so it gets saved with the form
         if hasattr(self, 'instance') and self.instance:
-            self.instance.subtotal = subtotal
-            self.instance.tax_amount = total_tax
-            self.instance.total_amount = total
+            self.instance.subtotal = self.subtotal
+            self.instance.tax_amount = self.tax_amount
+            self.instance.total_amount = self.total_amount
 
 InvoiceItemFormSet = forms.inlineformset_factory(
     Invoice,

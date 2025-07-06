@@ -552,80 +552,79 @@ class InvoiceUpdateView(LoginRequiredMixin, UpdateView):
                     form.add_error(None, 'This invoice has been modified by another user. Please refresh and try again.')
                     return self.form_invalid(form)
             
-            # Continue with the rest of the form processing
-            return self._process_form_with_formset(form, formset)
+            # Process the form data to remove empty forms
+            post_data = self.request.POST.copy()
+            total_forms = int(post_data.get('items-TOTAL_FORMS', 0))
+            
+            # Find which forms have data
+            valid_forms = []
+            for i in range(total_forms):
+                has_data = any(
+                    post_data.get(f'items-{i}-{field}') 
+                    for field in ['description', 'quantity', 'unit_price', 'vat_rate']
+                )
+                if has_data:
+                    valid_forms.append(i)
+            
+            # Update the form count
+            post_data['items-TOTAL_FORMS'] = str(len(valid_forms))
+            
+            # Create a new formset with the cleaned data
+            formset = type(formset)(
+                post_data,
+                instance=form.instance,
+                prefix='items',
+                form_kwargs={'user': self.request.user}
+            )
+            
+            # Validate the formset
+            if not formset.is_valid():
+                logger.error("Formset validation errors: %s", formset.errors)
+                for error in formset.errors:
+                    if error:
+                        form.add_error(None, f'Error in item: {error}')
+                return self.form_invalid(form)
+            
+            # Check if there's at least one non-deleted form with data
+            has_valid_forms = False
+            for form_in_formset in formset:
+                # Skip deleted forms
+                if form_in_formset.cleaned_data.get('DELETE'):
+                    continue
+                    
+                # Check if form has any data
+                form_data = {k: v for k, v in form_in_formset.cleaned_data.items() 
+                            if k not in ('id', 'DELETE') and v not in (None, '', 0, '0')}
+                
+                if form_data:  # If form has any data
+                    has_valid_forms = True
+                    break
+            
+            if not has_valid_forms:
+                form.add_error(None, 'At least one invoice item is required.')
+                return self.form_invalid(form)
+            
+            # If we got this far, save everything in a transaction
+            with transaction.atomic():
+                # Save the main form first
+                self.object = form.save(commit=False)
+                self.object.save()
+                
+                # Now save the formset
+                formset.instance = self.object
+                formset.save()
+                
+                # Update the invoice totals
+                self.object.update_totals()
+                
+                messages.success(self.request, 'Invoice updated successfully!')
+                return super().form_valid(form)
                 
         except Exception as e:
             # Log the error and add a user-friendly message
-            import logging
             logger = logging.getLogger(__name__)
             logger.error("Error in form_valid: %s", str(e), exc_info=True)
             form.add_error(None, f'An error occurred while processing the form: {str(e)}')
-            return self.form_invalid(form)
-        
-        # Set the client on the form's instance
-        if 'client' in form.cleaned_data and form.cleaned_data['client']:
-            form.instance.client = form.cleaned_data['client']
-        
-        # Save the form to get an instance (but don't commit to DB yet)
-        self.object = form.save(commit=False)
-        
-        # Process the form data to remove empty forms
-        post_data = self.request.POST.copy()
-        total_forms = int(post_data.get('items-TOTAL_FORMS', 0))
-        
-        # Find which forms have data
-        valid_forms = []
-        for i in range(total_forms):
-            has_data = any(
-                post_data.get(f'items-{i}-{field}') 
-                for field in ['description', 'quantity', 'unit_price', 'vat_rate']
-            )
-            
-        if not formset.is_valid():
-            logger.error("Formset validation errors: %s", formset.errors)
-            for error in formset.errors:
-                if error:
-                    form.add_error(None, f'Error in item: {error}')
-            return self.form_invalid(form)
-        
-        # Check if there's at least one non-deleted form with data
-        has_valid_forms = False
-        for form_in_formset in formset:
-            # Skip deleted forms
-            if form_in_formset.cleaned_data.get('DELETE'):
-                continue
-                
-            # Check if form has any data
-            form_data = {k: v for k, v in form_in_formset.cleaned_data.items() 
-                        if k not in ('id', 'DELETE') and v not in (None, '', 0, '0')}
-            
-            if form_data:  # If form has any data
-                has_valid_forms = True
-                break
-        
-        if not has_valid_forms:
-            form.add_error(None, 'At least one invoice item is required.')
-            return self.form_invalid(form)
-        
-        # If we got this far, save everything in a transaction
-        try:
-            with transaction.atomic():
-                # Save the main form first
-                self.object.save()
-                
-                # Store the formset on the form for use in save()
-                form.items_formset = formset
-                
-                # Save the form (which will also save the formset)
-                response = super().form_valid(form)
-                
-                messages.success(self.request, 'Invoice updated successfully!')
-                return response
-                
-        except Exception as e:
-            logger.exception("Error updating invoice")
-            form.add_error(None, f'An error occurred while updating the invoice: {str(e)}')
             return self.form_invalid(form)
     
     def get_success_url(self):
