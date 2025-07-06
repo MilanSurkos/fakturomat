@@ -9,9 +9,7 @@ services:
     buildCommand: |
       python -m pip install --upgrade pip
       pip install -r requirements.txt
-      python manage.py migrate
-      python manage.py collectstatic --noinput
-    startCommand: gunicorn project1.wsgi:application
+    startCommand: bash build.sh gunicorn project1.wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
