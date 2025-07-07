@@ -1,0 +1,30 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.py[cod]
+*$py.class
+.env
+*.sqlite3
+media
+staticfiles
+.DS_Store
+.env
+*.log
+local_settings.py
+*.sqlite3
+.python-version
+.idea
+.vscode
+*.bak
+*.swp
+*~
+# Local development
+*.local
+# Project specific
+db.sqlite3
+*.sql
+*.sql.gz
+*.csv
+*.xlsx
+*.xls
