@@ -156,17 +156,36 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     
-    # Add your Railway domain to ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS
-    ALLOWED_HOSTS = ['fakturomat-production.up.railway.app', 'www.fakturomat-production.up.railway.app']
-    CSRF_TRUSTED_ORIGINS = ['https://fakturomat-production.up.railway.app', 'https://www.fakturomat-production.up.railway.app']
+    # For production, be specific about allowed hosts and origins
+    ALLOWED_HOSTS = [
+        'fakturomat-production.up.railway.app',
+        'www.fakturomat-production.up.railway.app',
+        '127.0.0.1',
+        'localhost',
+    ]
     
-    # If you're using Django 4.0 or later, you might also need to set:
-    CSRF_COOKIE_DOMAIN = '.railway.app'  # The dot prefix allows all subdomains
-    SESSION_COOKIE_DOMAIN = '.railway.app'  # The dot prefix allows all subdomains
+    CSRF_TRUSTED_ORIGINS = [
+        'https://fakturomat-production.up.railway.app',
+        'https://www.fakturomat-production.up.railway.app',
+    ]
     
-    # If you're using Django 3.2 or later, you might need to set:
-    CSRF_USE_SESSIONS = False
-    CSRF_COOKIE_HTTPONLY = False  # This is the default, but just to be explicit
+    # For Railway's proxy
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    # For development, allow all hosts and origins
+    ALLOWED_HOSTS = ['*']
+    CSRF_TRUSTED_ORIGINS = ['http://*', 'https://*']
+
+# Common settings for all environments
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+# If you're using Django 4.0 or later, you might also need to set:
+CSRF_COOKIE_DOMAIN = None  # Let Django handle this automatically
+SESSION_COOKIE_DOMAIN = None  # Let Django handle this automatically
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
